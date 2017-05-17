@@ -10,6 +10,9 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+
 /**
  * An example SurfaceView for generating graphics on
  * @author Joel Ross
@@ -22,6 +25,8 @@ public class DrawingSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     private int viewWidth, viewHeight; //size of the view
 
     private Bitmap bmp; //image to draw on
+
+    private HashMap<Integer, Ball> touches;
 
     private SurfaceHolder mHolder; //the holder we're going to post updates to
     private DrawingRunnable mRunnable; //the code that we'll want to run on a background thread
@@ -79,7 +84,33 @@ public class DrawingSurfaceView extends SurfaceView implements SurfaceHolder.Cal
     public void update(){
         //update the "game state" here (move things around, etc.
 
+        ball.cx += ball.dx; //move
+        ball.cy += ball.dy;
 
+        //slow down
+        ball.dx *= 0.99;
+        ball.dy *= 0.99;
+
+//        if(ball.dx < .1) ball.dx = 0;
+//        if(ball.dy < .1) ball.dy = 0;
+
+        /* hit detection */
+        if(ball.cx + ball.radius > viewWidth) { //left bound
+            ball.cx = viewWidth - ball.radius;
+            ball.dx *= -1;
+        }
+        else if(ball.cx - ball.radius < 0) { //right bound
+            ball.cx = ball.radius;
+            ball.dx *= -1;
+        }
+        else if(ball.cy + ball.radius > viewHeight) { //bottom bound
+            ball.cy = viewHeight - ball.radius;
+            ball.dy *= -1;
+        }
+        else if(ball.cy - ball.radius < 0) { //top bound
+            ball.cy = ball.radius;
+            ball.dy *= -1;
+        }
     }
 
 
@@ -93,8 +124,12 @@ public class DrawingSurfaceView extends SurfaceView implements SurfaceHolder.Cal
         canvas.drawColor(Color.rgb(51,10,111)); //purple out the background
 
         canvas.drawCircle(ball.cx, ball.cy, ball.radius, whitePaint); //we can draw directly onto the canvas
+        ArrayList<Ball> circles = new ArrayList<Ball>(touches.values());
+        for (int i = 0; i < circles.size(); i++ ) {
+            Ball currentBall = circles.get(i);
+            canvas.drawCircle(currentBall.cx, currentBall.cy, currentBall.radius, whitePaint);
+        }
     }
-
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
@@ -132,6 +167,21 @@ public class DrawingSurfaceView extends SurfaceView implements SurfaceHolder.Cal
             }
         }
         Log.d(TAG, "Drawing thread shut down");
+    }
+
+    public synchronized void addTouch(int pointerID, float cx, float cy) {
+        touches.put(pointerID, new Ball(cx, cy, 100));
+    }
+
+    public synchronized void removeTouch(int pointer) {
+        touches.remove(pointer);
+    }
+
+    public synchronized void moveTouch(int pointerID, float x, float y) {
+        Ball ball = touches.remove(pointerID);
+        ball.cx = x;
+        ball.cy = y;
+        touches.put(pointerID, ball);
     }
 
     /**
